@@ -1,0 +1,73 @@
+openapi: 3.0.0
+info:
+  title: Portal de Projetos API
+  description: API para gerenciar o acompanhamento de desenvolvimento de aplicativos.
+  version: 1.0.0
+servers:
+  - url: http://localhost:3000
+    description: Servidor de Desenvolvimento Local
+
+paths:
+  /projects:
+    get:
+      summary: Retorna todos os projetos
+      responses:
+        '200':
+          description: Uma lista de projetos.
+  
+  /projects/{slug}:
+    get:
+      summary: Retorna um projeto específico pelo slug
+      parameters:
+        - in: path
+          name: slug
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Objeto do Projeto
+        '404':
+          description: Projeto não encontrado
+
+  /projects/{projectId}/steps:
+    get:
+      summary: Retorna todas as etapas de um projeto
+      parameters:
+        - in: path
+          name: projectId
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Lista de etapas
+    
+  /projects/{projectId}/steps/{stepId}:
+    put:
+      summary: Atualiza o percentual e status de uma etapa
+      parameters:
+        - in: path
+          name: projectId
+          required: true
+          schema:
+            type: integer
+        - in: path
+          name: stepId
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                percentage:
+                  type: integer
+                status:
+                  type: string
+      responses:
+        '200':
+          description: Etapa atualizada com sucesso e progresso global recalculado
