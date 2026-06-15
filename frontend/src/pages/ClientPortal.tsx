@@ -102,12 +102,12 @@ export default function ClientPortal() {
       {/* Header Global */}
       <header className="top-nav">
         <div className="brand">
-          <div className="logo-box">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="logo-icon"><path d="m12 15 3.5-3.5L12 8l-3.5 3.5Z"/><path d="M4.93 4.93l2.83 2.83"/><path d="M16.24 16.24l2.83 2.83"/><path d="M22 12h-4"/><path d="M6 12H2"/><path d="M12 2v4"/><path d="M12 18v4"/><path d="M16.24 7.76l2.83-2.83"/><path d="M4.93 19.07l2.83-2.83"/></svg>
+          <div className="logo-box" style={{ borderRadius: 8, overflow: 'hidden', display: 'flex', alignItems: 'center', background: 'transparent', padding: 0 }}>
+            <img src="/favicon.svg" alt="CR Logo" width="36" height="36" />
           </div>
           <div className="logo-text">
-            <h1>M&M SOLUÇÕES</h1>
-            <span className="sub-logo">DIGITAIS</span>
+            <h1 style={{ letterSpacing: '-0.5px' }}>CR</h1>
+            <span className="sub-logo" style={{ letterSpacing: '1px' }}>CRONOGRAMA</span>
           </div>
         </div>
         
