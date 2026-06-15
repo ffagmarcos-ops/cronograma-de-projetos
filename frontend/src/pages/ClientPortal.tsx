@@ -103,10 +103,10 @@ export default function ClientPortal() {
       <header className="top-nav">
         <div className="brand">
           <div className="logo-box" style={{ borderRadius: 8, overflow: 'hidden', display: 'flex', alignItems: 'center', background: 'transparent', padding: 0 }}>
-            <img src="/favicon.svg" alt="CR Logo" width="36" height="36" />
+            <img src="/favicon.svg" alt="CRP Logo" width="36" height="36" />
           </div>
           <div className="logo-text">
-            <h1 style={{ letterSpacing: '-0.5px' }}>CR</h1>
+            <h1 style={{ letterSpacing: '-0.5px' }}>CRP</h1>
             <span className="sub-logo" style={{ letterSpacing: '1px' }}>CRONOGRAMA</span>
           </div>
         </div>

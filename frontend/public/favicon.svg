@@ -10,10 +10,10 @@
   </defs>
   <rect width="256" height="256" rx="56" fill="url(#crGrad)" filter="url(#shadow)"/>
   
-  <text x="50%" y="54%" font-family="Inter, -apple-system, sans-serif" font-weight="900" font-size="130" fill="#ffffff" text-anchor="middle" dominant-baseline="middle" letter-spacing="-6">CR</text>
+  <text x="50%" y="54%" font-family="Inter, -apple-system, sans-serif" font-weight="900" font-size="100" fill="#ffffff" text-anchor="middle" dominant-baseline="middle" letter-spacing="-4">CRP</text>
   
   <!-- Elementos decorativos (timeline/cronograma) -->
-  <circle cx="190" cy="70" r="14" fill="#93C5FD"/>
-  <circle cx="210" cy="110" r="10" fill="#60A5FA"/>
-  <path d="M 190 70 L 210 110" stroke="#BFDBFE" stroke-width="4" stroke-dasharray="4 4" />
+  <circle cx="180" cy="70" r="14" fill="#93C5FD"/>
+  <circle cx="200" cy="110" r="10" fill="#60A5FA"/>
+  <path d="M 180 70 L 200 110" stroke="#BFDBFE" stroke-width="4" stroke-dasharray="4 4" />
 </svg>

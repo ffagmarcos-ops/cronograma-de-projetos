@@ -233,10 +233,10 @@ export default function AdminDashboard() {
       <header className="top-nav" style={{ padding: '1rem 2rem' }}>
         <div className="brand">
           <div className="logo-box" style={{ borderRadius: 8, overflow: 'hidden', display: 'flex', alignItems: 'center' }}>
-            <img src="/favicon.svg" alt="CR Logo" width="32" height="32" />
+            <img src="/favicon.svg" alt="CRP Logo" width="32" height="32" />
           </div>
           <div className="logo-text">
-            <h1 style={{ fontSize: '1rem', fontWeight: 800, color: '#0F172A', letterSpacing: '-0.5px' }}>CR - Cronograma</h1>
+            <h1 style={{ fontSize: '1rem', fontWeight: 800, color: '#0F172A', letterSpacing: '-0.5px' }}>CRP - Cronograma</h1>
           </div>
         </div>
         <div className="nav-actions">
