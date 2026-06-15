@@ -212,9 +212,9 @@ app.post('/projects', async (req, res) => {
       { order: 6, name: 'Desenvolvimento Backend', desc: 'Criação das APIs, lógica de servidor e segurança.', img: 'http://localhost:3000/uploads/step_6.png' },
       { order: 7, name: 'Desenvolvimento Frontend', desc: 'Construção da interface e integração com a API.', img: 'https://images.unsplash.com/photo-1547082299-de196ea013d6' },
       { order: 8, name: 'Testes Internos (QA)', desc: 'Testes de qualidade para garantir que não existam bugs.', img: 'https://images.unsplash.com/photo-1516259762381-22954d7d3ad2' },
-      { order: 9, name: 'Versão Beta para Cliente', desc: 'Disponibilização da versão Beta para o cliente validar.', img: 'https://images.unsplash.com/photo-1555421689-d68471e189f2' },
+      { order: 9, name: 'Versão Beta para Cliente', desc: 'Disponibilização da versão Beta para o cliente validar.', img: 'http://localhost:3000/uploads/step_9.png' },
       { order: 10, name: 'Ajustes Finais', desc: 'Correção de feedback gerado na versão Beta.', img: 'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40' },
-      { order: 11, name: 'Publicação nas Lojas', desc: 'Subida oficial do projeto para produção.', img: 'https://images.unsplash.com/photo-1522071820081-009f0129c71c' }
+      { order: 11, name: 'Publicação nas Lojas', desc: 'Subida oficial do projeto para produção.', img: 'http://localhost:3000/uploads/step_11.png' }
     ];
 
     for (const step of DEFAULT_STEPS) {
