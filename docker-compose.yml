@@ -107,8 +107,6 @@ services:
       PMA_PORT: 3306
       PMA_AUTH_TYPE: cookie
       PMA_ABSOLUTE_URI: https://phpmyadmin.projetos.aporttec.com/
-      PMA_USER: root
-      PMA_PASSWORD: 30mariafn@
       UPLOAD_LIMIT: 128M
     depends_on:
       projetos_db:
