@@ -101,6 +101,10 @@ services:
     image: phpmyadmin:5-apache
     container_name: projetos_phpmyadmin
     restart: always
+    command: >
+      sh -c "printf 'ServerName localhost\n' > /etc/apache2/conf-available/servername.conf
+      && a2enconf servername >/dev/null
+      && exec apache2-foreground"
     environment:
       PMA_HOST: projetos_db
       PMA_PORT: 3306
