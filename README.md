@@ -61,7 +61,7 @@ docker compose up -d projetos_db
 ```bash
 cd backend
 npm install
-npm run initdb
+npm run initdb:dev
 npm run dev
 ```
 
@@ -110,11 +110,14 @@ O script `backend/src/initdb.ts`:
 - Faz seed inicial somente quando não há projetos
 
 No container da API, o `entrypoint.sh` roda `npm run initdb` antes de iniciar a aplicação.
+No container da API, o `entrypoint.sh` roda `npm run initdb` antes de iniciar a aplicação, e esse script usa o arquivo compilado `dist/initdb.js`.
+
+Para uso local com TypeScript direto, utilize `npm run initdb:dev`.
 
 ## Healthchecks
 
 - MariaDB: `mariadb-admin ping`
-- API: `GET /projects`
+- API: `GET /health`
 - Frontend: `GET /`
 - phpMyAdmin: `GET /`
 
