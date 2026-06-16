@@ -98,7 +98,7 @@ services:
       - traefik
 
   projetos_phpmyadmin:
-    image: phpmyadmin:5-apache
+    image: phpmyadmin:latest
     container_name: projetos_phpmyadmin
     restart: always
     command: >
