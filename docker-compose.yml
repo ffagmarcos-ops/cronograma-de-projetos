@@ -6,8 +6,8 @@ services:
     environment:
       MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-root}
       MYSQL_DATABASE: ${DB_NAME:-mm_portal}
-      MYSQL_USER: ${DB_USER:-root}
-      MYSQL_PASSWORD: ${DB_PASSWORD:-root}
+      MYSQL_USER: ${DB_USER:-projetos_app}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-projetos_app_pwd}
     volumes:
       - projetos_db_data:/var/lib/mysql
     healthcheck:
@@ -29,8 +29,8 @@ services:
       DB_ENGINE: ${DB_ENGINE:-mariadb}
       DB_HOST: ${DB_HOST:-projetos_db}
       DB_PORT: ${DB_PORT:-3306}
-      DB_USER: ${DB_USER:-root}
-      DB_PASSWORD: ${DB_PASSWORD:-root}
+      DB_USER: ${DB_USER:-projetos_app}
+      DB_PASSWORD: ${DB_PASSWORD:-projetos_app_pwd}
       DB_NAME: ${DB_NAME:-mm_portal}
       DB_CONNECTION_LIMIT: ${DB_CONNECTION_LIMIT:-10}
       INIT_ADMIN_NAME: ${INIT_ADMIN_NAME:-Administrador}
@@ -103,8 +103,8 @@ services:
     environment:
       PMA_HOST: ${DB_HOST:-projetos_db}
       PMA_PORT: ${DB_PORT:-3306}
-      PMA_USER: ${DB_USER:-root}
-      PMA_PASSWORD: ${DB_PASSWORD:-root}
+      PMA_USER: ${DB_USER:-projetos_app}
+      PMA_PASSWORD: ${DB_PASSWORD:-projetos_app_pwd}
       UPLOAD_LIMIT: 128M
     depends_on:
       projetos_db:
