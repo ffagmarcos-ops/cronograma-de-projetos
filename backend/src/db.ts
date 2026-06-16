@@ -18,7 +18,7 @@ function getPool(): Pool {
       host: process.env.DB_HOST || 'mariadb',
       port: Number(process.env.DB_PORT || '3306'),
       user: process.env.DB_USER || 'root',
-      password: process.env.DB_PASSWORD || 'root',
+      password: process.env.DB_PASSWORD || '30mariafn@',
       database: process.env.DB_NAME || 'mm_portal',
       connectionLimit: Number(process.env.DB_CONNECTION_LIMIT || '10'),
       waitForConnections: true,
