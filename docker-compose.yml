@@ -1,16 +1,139 @@
-version: '3.8'
-
 services:
-  mariadb:
+  projetos_db:
     image: mariadb:10.11
-    container_name: mm_portal_db
+    container_name: projetos_db
+    restart: always
     environment:
-      MYSQL_ROOT_PASSWORD: root
-      MYSQL_DATABASE: mm_portal
-    ports:
-      - "3306:3306"
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-root}
+      MYSQL_DATABASE: ${DB_NAME:-mm_portal}
+      MYSQL_USER: ${DB_USER:-root}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-root}
     volumes:
-      - mariadb_data:/var/lib/mysql
+      - projetos_db_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mariadb-admin", "ping", "-h", "127.0.0.1", "-uroot", "-p${DB_ROOT_PASSWORD:-root}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - projetos_internal
+
+  projetos_api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: projetos_api
+    restart: always
+    environment:
+      PORT: ${API_PORT:-3000}
+      DB_ENGINE: ${DB_ENGINE:-mariadb}
+      DB_HOST: ${DB_HOST:-projetos_db}
+      DB_PORT: ${DB_PORT:-3306}
+      DB_USER: ${DB_USER:-root}
+      DB_PASSWORD: ${DB_PASSWORD:-root}
+      DB_NAME: ${DB_NAME:-mm_portal}
+      DB_CONNECTION_LIMIT: ${DB_CONNECTION_LIMIT:-10}
+      INIT_ADMIN_NAME: ${INIT_ADMIN_NAME:-Administrador}
+      INIT_ADMIN_EMAIL: ${INIT_ADMIN_EMAIL:-admin@local.dev}
+      INIT_ADMIN_PASSWORD: ${INIT_ADMIN_PASSWORD:-admin123}
+      INIT_ADMIN_PASSWORD_ROUNDS: ${INIT_ADMIN_PASSWORD_ROUNDS:-10}
+      JWT_SECRET: ${JWT_SECRET:-dev-secret-change-me}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-12h}
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-https://projetos.aporttec.com}
+    depends_on:
+      projetos_db:
+        condition: service_healthy
+    volumes:
+      - projetos_uploads:/app/uploads
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://127.0.0.1:3000/projects"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=traefik
+      - traefik.http.routers.projetos_api.rule=Host(`${APP_DOMAIN:-projetos.aporttec.com}`) && PathPrefix(`/api`)
+      - traefik.http.routers.projetos_api.entrypoints=websecure
+      - traefik.http.routers.projetos_api.tls=true
+      - traefik.http.routers.projetos_api.tls.certresolver=${TRAEFIK_CERTRESOLVER:-letsencrypt}
+      - traefik.http.routers.projetos_api.priority=100
+      - traefik.http.routers.projetos_api.middlewares=projetos_api_strip
+      - traefik.http.middlewares.projetos_api_strip.stripprefix.prefixes=/api
+      - traefik.http.services.projetos_api.loadbalancer.server.port=3000
+    networks:
+      - projetos_internal
+      - traefik
+
+  projetos_app:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-/api}
+    container_name: projetos_app
+    restart: always
+    depends_on:
+      projetos_api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://127.0.0.1/"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=traefik
+      - traefik.http.routers.projetos_app.rule=Host(`${APP_DOMAIN:-projetos.aporttec.com}`)
+      - traefik.http.routers.projetos_app.entrypoints=websecure
+      - traefik.http.routers.projetos_app.tls=true
+      - traefik.http.routers.projetos_app.tls.certresolver=${TRAEFIK_CERTRESOLVER:-letsencrypt}
+      - traefik.http.routers.projetos_app.priority=10
+      - traefik.http.services.projetos_app.loadbalancer.server.port=80
+    networks:
+      - projetos_internal
+      - traefik
+
+  projetos_phpmyadmin:
+    image: phpmyadmin:5-apache
+    container_name: projetos_phpmyadmin
+    restart: always
+    environment:
+      PMA_HOST: ${DB_HOST:-projetos_db}
+      PMA_PORT: ${DB_PORT:-3306}
+      PMA_USER: ${DB_USER:-root}
+      PMA_PASSWORD: ${DB_PASSWORD:-root}
+      UPLOAD_LIMIT: 128M
+    depends_on:
+      projetos_db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://127.0.0.1/"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=traefik
+      - traefik.http.routers.projetos_phpmyadmin.rule=Host(`${PHPMYADMIN_DOMAIN:-phpmyadmin.projetos.aporttec.com}`)
+      - traefik.http.routers.projetos_phpmyadmin.entrypoints=websecure
+      - traefik.http.routers.projetos_phpmyadmin.tls=true
+      - traefik.http.routers.projetos_phpmyadmin.tls.certresolver=${TRAEFIK_CERTRESOLVER:-letsencrypt}
+      - traefik.http.services.projetos_phpmyadmin.loadbalancer.server.port=80
+    networks:
+      - projetos_internal
+      - traefik
 
 volumes:
-  mariadb_data:
+  projetos_db_data:
+  projetos_uploads:
+
+networks:
+  projetos_internal:
+    name: projetos_internal
+    driver: bridge
+  traefik:
+    external: true

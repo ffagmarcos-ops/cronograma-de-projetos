@@ -1,9 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import axios from 'axios';
-import { MessageCircle, CheckCircle, Clock, Calendar, Check, Rocket, X, Info } from 'lucide-react';
+import { Clock, Calendar, Check, Rocket, X, Info } from 'lucide-react';
 
-const API_URL = 'http://localhost:3000';
+const API_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 
 export default function ClientPortal() {
   const { slug } = useParams();

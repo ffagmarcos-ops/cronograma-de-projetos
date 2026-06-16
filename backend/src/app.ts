@@ -3,15 +3,63 @@ import cors from 'cors';
 import swaggerUi from 'swagger-ui-express';
 import YAML from 'yamljs';
 import path from 'path';
+import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 import multer from 'multer';
-import { getDb } from './db';
+import bcrypt from 'bcryptjs';
+import jwt, { type SignOptions } from 'jsonwebtoken';
+import { getDb } from './db.js';
 
 dotenv.config();
+
+const publicBaseUrl = process.env.PUBLIC_BASE_URL || `http://localhost:${process.env.PORT || 3000}`;
+const jwtSecret = process.env.JWT_SECRET || 'dev-secret-change-me';
+const jwtExpiresIn = (process.env.JWT_EXPIRES_IN || '12h') as NonNullable<SignOptions['expiresIn']>;
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 app.use(cors());
 app.use(express.json());
+
+type AuthenticatedRequest = express.Request & {
+  user?: {
+    id: string | number;
+    email: string;
+    role: string;
+  };
+};
+
+function authenticateToken(req: AuthenticatedRequest, res: express.Response, next: express.NextFunction) {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ error: 'Token nao informado' });
+  }
+
+  const token = authHeader.substring(7);
+
+  try {
+    const decoded = jwt.verify(token, jwtSecret) as jwt.JwtPayload & {
+      sub?: string | number;
+      email?: string;
+      role?: string;
+    };
+
+    if (!decoded.sub || !decoded.email || !decoded.role) {
+      return res.status(401).json({ error: 'Token invalido' });
+    }
+
+    req.user = {
+      id: decoded.sub,
+      email: decoded.email,
+      role: decoded.role
+    };
+
+    next();
+  } catch {
+    return res.status(401).json({ error: 'Token invalido ou expirado' });
+  }
+}
 
 // Servir arquivos de upload
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
@@ -29,11 +77,11 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage });
 
-app.post('/upload', upload.single('file'), (req, res) => {
+app.post('/upload', authenticateToken, upload.single('file'), (req, res) => {
   if (!req.file) {
     return res.status(400).json({ error: 'Nenhum arquivo enviado' });
   }
-  const publicUrl = `http://localhost:3000/uploads/${req.file.filename}`;
+  const publicUrl = `${publicBaseUrl}/uploads/${req.file.filename}`;
   res.json({ url: publicUrl });
 });
 
@@ -91,6 +139,53 @@ app.get('/projects', async (req, res) => {
   }
 });
 
+app.post('/auth/login', async (req, res) => {
+  try {
+    const { email, password } = req.body || {};
+
+    if (typeof email !== 'string' || typeof password !== 'string' || !email || !password) {
+      return res.status(400).json({ error: 'Email e senha sao obrigatorios' });
+    }
+
+    const db = await getDb();
+    const user = await db.get(
+      'SELECT id, name, email, role, password_hash FROM users WHERE email = ?',
+      [email]
+    );
+
+    if (!user) {
+      return res.status(401).json({ error: 'Credenciais invalidas' });
+    }
+
+    const passwordMatches = await bcrypt.compare(password, user.password_hash);
+    if (!passwordMatches) {
+      return res.status(401).json({ error: 'Credenciais invalidas' });
+    }
+
+    const token = jwt.sign(
+      { sub: user.id, email: user.email, role: user.role },
+      jwtSecret,
+      { expiresIn: jwtExpiresIn }
+    );
+
+    res.json({
+      token,
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role
+      }
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/auth/me', authenticateToken, async (req: AuthenticatedRequest, res) => {
+  return res.json({ user: req.user });
+});
+
 app.get('/projects/:slug', async (req, res) => {
   try {
     const { slug } = req.params;
@@ -103,7 +198,7 @@ app.get('/projects/:slug', async (req, res) => {
   }
 });
 
-app.put('/projects/:id', async (req, res) => {
+app.put('/projects/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
     const { name, client_name, banner_url, logo_url, start_date, expected_delivery, status, progress, color } = req.body;
@@ -130,9 +225,9 @@ app.get('/projects/:projectId/steps', async (req, res) => {
   }
 });
 
-app.post('/projects/:projectId/steps', async (req, res) => {
+app.post('/projects/:projectId/steps', authenticateToken, async (req, res) => {
   try {
-    const { projectId } = req.params;
+    const projectId = String(req.params.projectId);
     const { name, description, duration_days, image_url } = req.body;
     const db = await getDb();
     
@@ -153,9 +248,9 @@ app.post('/projects/:projectId/steps', async (req, res) => {
   }
 });
 
-app.put('/projects/:projectId/steps/reorder', async (req, res) => {
+app.put('/projects/:projectId/steps/reorder', authenticateToken, async (req, res) => {
   try {
-    const { projectId } = req.params;
+    const projectId = String(req.params.projectId);
     const { orderedStepIds } = req.body; // array de IDs na nova ordem
     const db = await getDb();
     
@@ -170,9 +265,10 @@ app.put('/projects/:projectId/steps/reorder', async (req, res) => {
   }
 });
 
-app.put('/projects/:projectId/steps/:stepId/set_current', async (req, res) => {
+app.put('/projects/:projectId/steps/:stepId/set_current', authenticateToken, async (req, res) => {
   try {
-    const { projectId, stepId } = req.params;
+    const projectId = String(req.params.projectId);
+    const stepId = String(req.params.stepId);
     const db = await getDb();
     
     const targetStep = await db.get('SELECT step_order FROM project_steps WHERE id = ?', [stepId]);
@@ -189,7 +285,7 @@ app.put('/projects/:projectId/steps/:stepId/set_current', async (req, res) => {
   }
 });
 
-app.post('/projects', async (req, res) => {
+app.post('/projects', authenticateToken, async (req, res) => {
   try {
     const { name, slug, client_name, banner_url, start_date, expected_delivery } = req.body;
     const db = await getDb();
@@ -204,17 +300,17 @@ app.post('/projects', async (req, res) => {
 
     // Criar as 11 etapas padrão automaticamente
     const DEFAULT_STEPS = [
-      { order: 1, name: 'Requisitos e Coleta de Dados', desc: 'Compreensão das necessidades e regras de negócio.', img: 'http://localhost:3000/uploads/step_1.png' },
-      { order: 2, name: 'Planejamento do Projeto', desc: 'Definição de prazos, milestones e arquitetura.', img: 'http://localhost:3000/uploads/step_2.png' },
-      { order: 3, name: 'Design UI/UX', desc: 'Prototipação das telas e fluxo de navegação.', img: 'http://localhost:3000/uploads/step_3.png' },
-      { order: 4, name: 'Aprovação do Design', desc: 'Validação visual com o cliente.', img: 'http://localhost:3000/uploads/step_4.png' },
-      { order: 5, name: 'Estruturação e Banco de Dados', desc: 'Setup de servidores, repositórios e banco de dados.', img: 'http://localhost:3000/uploads/step_5.png' },
-      { order: 6, name: 'Desenvolvimento Backend', desc: 'Criação das APIs, lógica de servidor e segurança.', img: 'http://localhost:3000/uploads/step_6.png' },
+      { order: 1, name: 'Requisitos e Coleta de Dados', desc: 'Compreensão das necessidades e regras de negócio.', img: `${publicBaseUrl}/uploads/step_1.png` },
+      { order: 2, name: 'Planejamento do Projeto', desc: 'Definição de prazos, milestones e arquitetura.', img: `${publicBaseUrl}/uploads/step_2.png` },
+      { order: 3, name: 'Design UI/UX', desc: 'Prototipação das telas e fluxo de navegação.', img: `${publicBaseUrl}/uploads/step_3.png` },
+      { order: 4, name: 'Aprovação do Design', desc: 'Validação visual com o cliente.', img: `${publicBaseUrl}/uploads/step_4.png` },
+      { order: 5, name: 'Estruturação e Banco de Dados', desc: 'Setup de servidores, repositórios e banco de dados.', img: `${publicBaseUrl}/uploads/step_5.png` },
+      { order: 6, name: 'Desenvolvimento Backend', desc: 'Criação das APIs, lógica de servidor e segurança.', img: `${publicBaseUrl}/uploads/step_6.png` },
       { order: 7, name: 'Desenvolvimento Frontend', desc: 'Construção da interface e integração com a API.', img: 'https://images.unsplash.com/photo-1547082299-de196ea013d6' },
       { order: 8, name: 'Testes Internos (QA)', desc: 'Testes de qualidade para garantir que não existam bugs.', img: 'https://images.unsplash.com/photo-1516259762381-22954d7d3ad2' },
-      { order: 9, name: 'Versão Beta para Cliente', desc: 'Disponibilização da versão Beta para o cliente validar.', img: 'http://localhost:3000/uploads/step_9.png' },
+      { order: 9, name: 'Versão Beta para Cliente', desc: 'Disponibilização da versão Beta para o cliente validar.', img: `${publicBaseUrl}/uploads/step_9.png` },
       { order: 10, name: 'Ajustes Finais', desc: 'Correção de feedback gerado na versão Beta.', img: 'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40' },
-      { order: 11, name: 'Publicação nas Lojas', desc: 'Subida oficial do projeto para produção.', img: 'http://localhost:3000/uploads/step_11.png' }
+      { order: 11, name: 'Publicação nas Lojas', desc: 'Subida oficial do projeto para produção.', img: `${publicBaseUrl}/uploads/step_11.png` }
     ];
 
     for (const step of DEFAULT_STEPS) {
@@ -232,9 +328,10 @@ app.post('/projects', async (req, res) => {
   }
 });
 
-app.put('/projects/:projectId/steps/:stepId', async (req, res) => {
+app.put('/projects/:projectId/steps/:stepId', authenticateToken, async (req, res) => {
   try {
-    const { projectId, stepId } = req.params;
+    const projectId = String(req.params.projectId);
+    const stepId = String(req.params.stepId);
     const { percentage, status, duration_days } = req.body;
     const db = await getDb();
     

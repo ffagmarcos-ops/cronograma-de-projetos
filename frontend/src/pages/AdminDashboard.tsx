@@ -1,10 +1,17 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
-import { LayoutDashboard, ExternalLink, Save, Plus, FolderKanban, CheckCircle2, X } from 'lucide-react';
+import { ExternalLink, Save, Plus, FolderKanban, CheckCircle2, X } from 'lucide-react';
+import api from '../lib/api';
 
-const API_URL = 'http://localhost:3000';
+const API_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 
 export default function AdminDashboard() {
+  const [token, setToken] = useState<string | null>(() => localStorage.getItem('admin_token'));
+  const [authLoading, setAuthLoading] = useState(true);
+  const [loginData, setLoginData] = useState({ email: '', password: '' });
+  const [loginError, setLoginError] = useState<string | null>(null);
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
+
   const [projects, setProjects] = useState<any[]>([]);
   const [selectedProject, setSelectedProject] = useState<any>(null);
   const [steps, setSteps] = useState<any[]>([]);
@@ -29,9 +36,74 @@ export default function AdminDashboard() {
   const [customStepImage, setCustomStepImage] = useState<File | null>(null);
   const [isAddingStep, setIsAddingStep] = useState(false);
 
+  function clearSession() {
+    localStorage.removeItem('admin_token');
+    setToken(null);
+    setProjects([]);
+    setSelectedProject(null);
+    setSteps([]);
+    setLoading(false);
+  }
+
+  function handleUnauthorized() {
+    clearSession();
+    setLoginError('Sessao expirada. Faca login novamente.');
+  }
+
+  async function handleLogin(e: React.FormEvent) {
+    e.preventDefault();
+    setIsLoggingIn(true);
+    setLoginError(null);
+
+    try {
+      const res = await api.post(`${API_URL}/auth/login`, loginData);
+      const nextToken = res.data?.token;
+
+      if (!nextToken) {
+        setLoginError('Falha ao autenticar.');
+        return;
+      }
+
+      localStorage.setItem('admin_token', nextToken);
+      setToken(nextToken);
+      setLoginData({ email: '', password: '' });
+      setLoading(true);
+    } catch (err: any) {
+      const message = err?.response?.data?.error || 'Credenciais invalidas';
+      setLoginError(message);
+    } finally {
+      setIsLoggingIn(false);
+    }
+  }
+
+  function handleLogout() {
+    clearSession();
+  }
+
   useEffect(() => {
-    fetchProjects();
-  }, []);
+    async function validateSession() {
+      if (!token) {
+        setAuthLoading(false);
+        return;
+      }
+
+      try {
+        await api.get(`${API_URL}/auth/me`);
+      } catch {
+        clearSession();
+      } finally {
+        setAuthLoading(false);
+      }
+    }
+
+    validateSession();
+  }, [token]);
+
+  useEffect(() => {
+    if (!authLoading && token) {
+      fetchProjects();
+    }
+  }, [authLoading, token]);
 
   async function fetchProjects() {
     try {
@@ -59,11 +131,14 @@ export default function AdminDashboard() {
 
   async function updateStep(stepId: number, percentage: number, status: string, duration_days: number) {
     try {
-      await axios.put(`${API_URL}/projects/${selectedProject.id}/steps/${stepId}`, {
-        percentage: Number(percentage),
-        status,
-        duration_days: Number(duration_days)
-      });
+      await api.put(
+        `${API_URL}/projects/${selectedProject.id}/steps/${stepId}`,
+        {
+          percentage: Number(percentage),
+          status,
+          duration_days: Number(duration_days)
+        }
+      );
       await fetchProjects();
       const res = await axios.get(`${API_URL}/projects/${selectedProject.id}/steps`);
       setSteps(res.data);
@@ -72,6 +147,10 @@ export default function AdminDashboard() {
       setTimeout(() => setSaveSuccess(null), 3000);
     } catch (err) {
       console.error(err);
+      if (axios.isAxiosError(err) && err.response?.status === 401) {
+        handleUnauthorized();
+        return;
+      }
       alert('Erro ao salvar etapa');
     }
   }
@@ -106,7 +185,7 @@ export default function AdminDashboard() {
     setDraggedStepIdx(idx);
   };
   
-  const handleDragOver = (e: React.DragEvent, idx: number) => {
+  const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault(); // Necessário para permitir drop
   };
   
@@ -123,23 +202,37 @@ export default function AdminDashboard() {
     
     try {
       const orderedIds = newSteps.map(s => s.id);
-      await axios.put(`${API_URL}/projects/${selectedProject.id}/steps/reorder`, { orderedStepIds: orderedIds });
+      await api.put(
+        `${API_URL}/projects/${selectedProject.id}/steps/reorder`,
+        { orderedStepIds: orderedIds }
+      );
       const res = await axios.get(`${API_URL}/projects/${selectedProject.id}/steps`);
       setSteps(res.data);
     } catch (err) {
       console.error(err);
+      if (axios.isAxiosError(err) && err.response?.status === 401) {
+        handleUnauthorized();
+        return;
+      }
       alert('Erro ao reordenar');
     }
   };
 
   async function handleSetCurrentStep(stepId: number) {
     try {
-      await axios.put(`${API_URL}/projects/${selectedProject.id}/steps/${stepId}/set_current`);
+      await api.put(
+        `${API_URL}/projects/${selectedProject.id}/steps/${stepId}/set_current`,
+        {}
+      );
       await fetchProjects();
       const res = await axios.get(`${API_URL}/projects/${selectedProject.id}/steps`);
       setSteps(res.data);
     } catch (err) {
       console.error(err);
+      if (axios.isAxiosError(err) && err.response?.status === 401) {
+        handleUnauthorized();
+        return;
+      }
       alert('Erro ao definir etapa atual');
     }
   }
@@ -153,19 +246,22 @@ export default function AdminDashboard() {
       if (bannerFile) {
         const formData = new FormData();
         formData.append('file', bannerFile);
-        const uploadRes = await axios.post(`${API_URL}/upload`, formData, {
+        const uploadRes = await api.post(`${API_URL}/upload`, formData, {
           headers: { 'Content-Type': 'multipart/form-data' }
         });
         banner_url = uploadRes.data.url;
       }
 
       const slug = newProjectData.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
-      const res = await axios.post(`${API_URL}/projects`, {
-        ...newProjectData,
-        banner_url,
-        slug,
-        expected_delivery: newProjectData.start_date // default inicial
-      });
+      const res = await api.post(
+        `${API_URL}/projects`,
+        {
+          ...newProjectData,
+          banner_url,
+          slug,
+          expected_delivery: newProjectData.start_date // default inicial
+        }
+      );
       
       setIsNewProjectModalOpen(false);
       setNewProjectData({ name: '', client_name: '', start_date: new Date().toISOString().split('T')[0] });
@@ -181,6 +277,10 @@ export default function AdminDashboard() {
 
     } catch (err) {
       console.error(err);
+      if (axios.isAxiosError(err) && err.response?.status === 401) {
+        handleUnauthorized();
+        return;
+      }
       alert('Erro ao criar projeto');
     } finally {
       setIsCreating(false);
@@ -197,16 +297,19 @@ export default function AdminDashboard() {
       if (customStepImage) {
         const formData = new FormData();
         formData.append('file', customStepImage);
-        const uploadRes = await axios.post(`${API_URL}/upload`, formData, {
+        const uploadRes = await api.post(`${API_URL}/upload`, formData, {
           headers: { 'Content-Type': 'multipart/form-data' }
         });
         image_url = uploadRes.data.url;
       }
 
-      await axios.post(`${API_URL}/projects/${selectedProject.id}/steps`, {
-        ...newCustomStep,
-        image_url
-      });
+      await api.post(
+        `${API_URL}/projects/${selectedProject.id}/steps`,
+        {
+          ...newCustomStep,
+          image_url
+        }
+      );
       
       // Limpa form
       setNewCustomStep({ name: '', description: '', duration_days: 2 });
@@ -218,10 +321,59 @@ export default function AdminDashboard() {
       
     } catch (err) {
       console.error(err);
+      if (axios.isAxiosError(err) && err.response?.status === 401) {
+        handleUnauthorized();
+        return;
+      }
       alert('Erro ao adicionar etapa customizada');
     } finally {
       setIsAddingStep(false);
     }
+  }
+
+  if (authLoading) return <div style={{padding: '50px', textAlign:'center', color: '#64748B'}}>Validando autenticacao...</div>;
+
+  if (!token) {
+    return (
+      <div style={{ minHeight: '100vh', background: '#F8FAFC', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
+        <form
+          onSubmit={handleLogin}
+          style={{ width: '100%', maxWidth: 420, background: 'white', borderRadius: 16, padding: '2rem', border: '1px solid #E2E8F0', boxShadow: '0 10px 30px rgba(15, 23, 42, 0.08)' }}
+        >
+          <h2 style={{ margin: 0, marginBottom: '0.5rem', color: '#0F172A' }}>Acesso Administrativo</h2>
+          <p style={{ marginTop: 0, marginBottom: '1.25rem', color: '#64748B', fontSize: '0.9rem' }}>Entre com suas credenciais para gerenciar os projetos.</p>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+            <input
+              type="email"
+              value={loginData.email}
+              onChange={(e) => setLoginData((prev) => ({ ...prev, email: e.target.value }))}
+              placeholder="Email"
+              required
+              style={{ padding: '0.75rem 0.9rem', borderRadius: 10, border: '1px solid #CBD5E1', outline: 'none' }}
+            />
+            <input
+              type="password"
+              value={loginData.password}
+              onChange={(e) => setLoginData((prev) => ({ ...prev, password: e.target.value }))}
+              placeholder="Senha"
+              required
+              style={{ padding: '0.75rem 0.9rem', borderRadius: 10, border: '1px solid #CBD5E1', outline: 'none' }}
+            />
+          </div>
+
+          {loginError && <div style={{ marginTop: '0.85rem', color: '#B91C1C', fontSize: '0.85rem' }}>{loginError}</div>}
+
+          <button
+            type="submit"
+            disabled={isLoggingIn}
+            style={{ marginTop: '1rem', width: '100%', padding: '0.8rem', borderRadius: 10, border: 'none', background: '#0F172A', color: 'white', fontWeight: 700, cursor: 'pointer' }}
+          >
+            {isLoggingIn ? 'Entrando...' : 'Entrar'}
+          </button>
+        </form>
+      </div>
+    );
   }
 
   if (loading) return <div style={{padding: '50px', textAlign:'center', color: '#64748B'}}>Carregando ambiente administrativo...</div>;
@@ -244,6 +396,12 @@ export default function AdminDashboard() {
             <div style={{ width: 8, height: 8, background: '#10B981', borderRadius: '50%' }}></div>
             <span style={{ fontSize: '0.8rem', fontWeight: 600, color: '#475569' }}>Sistema Online</span>
           </div>
+          <button
+            onClick={handleLogout}
+            style={{ marginLeft: '0.75rem', border: '1px solid #CBD5E1', background: 'white', color: '#334155', padding: '0.5rem 0.9rem', borderRadius: 10, fontWeight: 600, cursor: 'pointer' }}
+          >
+            Sair
+          </button>
         </div>
       </header>
 
@@ -356,7 +514,7 @@ export default function AdminDashboard() {
                           <tr key={step.id} 
                               draggable
                               onDragStart={() => handleDragStart(idx)}
-                              onDragOver={(e) => handleDragOver(e, idx)}
+                              onDragOver={handleDragOver}
                               onDrop={(e) => handleDrop(e, idx)}
                               style={{ borderBottom: isLast ? 'none' : '1px solid #F1F5F9', transition: 'background 0.2s', background: 'white' }}
                               onMouseEnter={(e) => { e.currentTarget.style.background = '#F8FAFC' }}
@@ -411,7 +569,7 @@ export default function AdminDashboard() {
                                       e.target.style.borderColor = '#CBD5E1';
                                       triggerAutoUpdate(step.id, 'date');
                                     }}
-                                    onChange={(e) => {
+                                    onChange={() => {
                                       triggerAutoUpdate(step.id, 'date');
                                     }}
                                   />
