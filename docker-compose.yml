@@ -5,9 +5,10 @@ services:
     restart: always
     environment:
       MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-root}
+      MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-root}
+      MYSQL_ROOT_HOST: ${DB_ROOT_HOST:-%}
+      MARIADB_ROOT_HOST: ${DB_ROOT_HOST:-%}
       MYSQL_DATABASE: ${DB_NAME:-mm_portal}
-      MYSQL_USER: ${DB_USER:-root}
-      MYSQL_PASSWORD: ${DB_PASSWORD:-30mariafn@}
     volumes:
       - projetos_db_data:/var/lib/mysql
     healthcheck:
@@ -30,7 +31,7 @@ services:
       DB_HOST: ${DB_HOST:-projetos_db}
       DB_PORT: ${DB_PORT:-3306}
       DB_USER: ${DB_USER:-root}
-      DB_PASSWORD: ${DB_PASSWORD:-30mariafn@}
+      DB_PASSWORD: ${DB_ROOT_PASSWORD:-root}
       DB_NAME: ${DB_NAME:-mm_portal}
       DB_CONNECTION_LIMIT: ${DB_CONNECTION_LIMIT:-10}
       INIT_ADMIN_NAME: ${INIT_ADMIN_NAME:-Administrador}
@@ -104,7 +105,7 @@ services:
       PMA_HOST: ${DB_HOST:-projetos_db}
       PMA_PORT: ${DB_PORT:-3306}
       PMA_USER: ${DB_USER:-root}
-      PMA_PASSWORD: ${DB_PASSWORD:-30mariafn@}
+      PMA_PASSWORD: ${DB_ROOT_PASSWORD:-root}
       UPLOAD_LIMIT: 128M
     depends_on:
       projetos_db:
